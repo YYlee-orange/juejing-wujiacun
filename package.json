@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild src/main.js --bundle --format=iife --minify --legal-comments=eof --outfile=game.js"
+    "build": "esbuild src/main.js --bundle --format=iife --minify --legal-comments=eof --outfile=game.js",
+    "build:pages": "npm run build && node scripts/build-pages.mjs"
   },
   "dependencies": {
     "three": "0.187.0"

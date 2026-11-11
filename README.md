@@ -8,6 +8,22 @@
 
 下载或克隆完整项目后，用支持 WebGL 的浏览器打开 `index.html`。仓库已包含构建好的 `game.js`，游玩不需要安装依赖。
 
+## 云端游玩（GitHub Pages）
+
+[在线游玩绝境吴家村](https://yylee-orange.github.io/juejing-wujiacun/)
+
+仓库内的 `Deploy game to GitHub Pages` 工作流会在每次推送到 `main` 后自动安装依赖、构建并发布游戏。部署完成后，在仓库的 **Actions** 或 **Settings → Pages** 中打开在线游玩链接。
+
+当前仓库已启用 GitHub Actions 发布。迁移到其他仓库时，需要在 **Settings → Pages → Build and deployment → Source** 中选择 **GitHub Actions**。私有仓库使用 GitHub Pages 需要账号套餐支持。
+
+本地生成与云端一致的发布文件：
+
+```sh
+npm run build:pages
+```
+
+`dist/` 仅包含游戏页面、样式、打包脚本和 `.nojekyll`，可以部署到静态网页服务。资源地址使用相对路径，支持 GitHub Pages 的项目子目录；构建时生成资源版本标记，便于更新后加载最新内容。
+
 ## 开发与构建
 
 安装 Node.js 后，在项目目录执行：
