@@ -10,6 +10,9 @@ import { createBattle } from './battle.js';
 import { balance } from './balance.js';
 import { createDeployment } from './deployment.js';
 import { installInkUi } from './ui.js';
+import { createCloudTransition } from './cloud-transition.js';
+import { createPauseMenu } from './pause-menu.js';
+import { createLevelMap } from './level-map.js';
 
 const viewport = document.querySelector('#viewport');
 const errorMessage = document.querySelector('#error');
@@ -68,9 +71,27 @@ function run(view) {
   let selected = false;
   let selectedTeam = 'militia';
   let paused = false;
-  let phase = 'menu', sceneryElapsed = 0, entranceProgress = 0, entranceAngle = initialAngle, entranceTurn = 0, entranceZoom = menuZoom;
+  let phase = 'menu', sceneryElapsed = 0;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const canPlay = () => phase === 'playing';
+  const clouds = createCloudTransition(document.querySelector('#scene-transition'), { reducedMotion });
+  const pauseMenu = createPauseMenu(document.querySelector('#pause-menu'), {
+    reducedMotion,
+    onPauseChange(value) {
+      paused = value;
+      inkUi.setPaused(value);
+      document.querySelector('#play-ui').inert = value;
+      viewport.inert = value;
+      if (value) { drag = null; pinch = null; touches.clear(); view.domElement.classList.remove('is-dragging'); }
+    },
+    returnFocus: () => pauseButton,
+  });
+  const canPlay = () => phase === 'playing' && !paused && !clouds.busy;
+  const levelMap = createLevelMap(document.querySelector('#level-screen'), {
+    reducedMotion,
+    canInteract: () => phase === 'map' && !clouds.busy && contextAvailable,
+    onEnter: () => changeScene('playing'),
+    onBack: () => changeScene('menu'),
+  });
   const activeSquad = () => selectedTeam === 'engineers' ? engineers : squad;
   const activeOrders = () => selectedTeam === 'engineers' ? battle.engineerOrders : battle;
   const deployment = createDeployment({ reducedMotion });
@@ -371,14 +392,13 @@ function run(view) {
   }, { passive: false });
   squadButton.addEventListener('click', () => select(!(selected && selectedTeam === 'militia'), 'militia'));
   engineerButton.addEventListener('click', () => select(!(selected && selectedTeam === 'engineers'), 'engineers'));
-  document.querySelector('#wave-replay').addEventListener('click', () => {
-    reset();
-  });
-  document.querySelector('#restart-battle').addEventListener('click', reset);
+  document.querySelector('#pause-restart').addEventListener('click', () => changeScene('playing'));
+  document.querySelector('#return-to-menu').addEventListener('click', () => changeScene('menu'));
+  document.querySelector('#restart-battle').addEventListener('click', () => changeScene('playing'));
   function togglePause() {
+    if (pauseMenu.active) { pauseMenu.close(); return; }
     if (!canPlay() || battle.state.result) return;
-    paused = !paused;
-    inkUi.setPaused(paused);
+    pauseMenu.open();
   }
   pauseButton.addEventListener('click', togglePause);
 
@@ -433,6 +453,9 @@ function run(view) {
   ]);
   window.addEventListener('keydown', event => {
     if (event.ctrlKey || event.altKey || event.metaKey) return;
+    if (clouds.busy) { event.preventDefault(); return; }
+    if (phase === 'map') { levelMap.handleKey(event); return; }
+    if (pauseMenu.handleKey(event)) return;
     if (!canPlay()) {
       if (phase === 'menu' && event.code === 'Enter' && !event.repeat && !(event.target instanceof HTMLButtonElement)) {
         event.preventDefault(); startGame();
@@ -463,45 +486,54 @@ function run(view) {
     paused = false;
     inkUi.setPaused(false);
     angle = initialAngle;
-    zoom = phase === 'menu' ? menuZoom : 1;
+    zoom = phase === 'playing' ? 1 : menuZoom;
     selectedTeam = 'militia';
+    drag = null; pinch = null; touches.clear();
+    view.domElement.classList.remove('is-dragging');
     battle.reset();
-    squad.group.visible = engineers.group.visible = waves.group.visible = phase !== 'menu';
+    squad.group.visible = engineers.group.visible = waves.group.visible = phase === 'playing';
     deployment.reset();
     view.domElement.style.filter = '';
     setHovered(null);
     updateDestination();
     showMarker(current, spawn, currentFill, .051, 4);
     select(false);
+    refreshBattleUi();
     refreshWaveStatus();
     view.shadowMap.needsUpdate = true;
     refreshCamera();
   }
 
-  function finishEntrance() {
-    phase = 'playing';
-    game.dataset.screen = phase;
-    startScreen.hidden = true;
-    angle = initialAngle;
-    zoom = 1;
-    refreshCamera();
+  function changeScene(nextPhase) {
+    if (clouds.busy || (nextPhase === 'playing' && !contextAvailable)) return false;
+    pauseMenu.close({ restore: false });
+    startButton.disabled = true;
+    const activate = () => {
+      pauseMenu.dismiss();
+      phase = nextPhase;
+      game.dataset.screen = phase;
+      startScreen.hidden = phase !== 'menu';
+      startScreen.inert = phase !== 'menu';
+      startScreen.setAttribute('aria-hidden', String(phase !== 'menu'));
+      if (phase === 'map') levelMap.show(); else levelMap.hide();
+      viewport.inert = phase !== 'playing';
+      document.querySelector('#play-ui').inert = phase !== 'playing';
+      reset();
+    };
+    return clouds.play(() => {
+      if (nextPhase === 'map' && !levelMap.state.loaded) return levelMap.ready.then(activate);
+      return activate();
+    }, () => {
+      startButton.disabled = phase !== 'menu' || !contextAvailable;
+      if (phase === 'map') levelMap.focus();
+      else {
+        const target = phase === 'menu' ? startButton : pauseButton;
+        if (!target.disabled) target.focus({ preventScroll: true });
+      }
+    });
   }
   function startGame() {
-    if (phase !== 'menu' || startButton.disabled) return;
-    const previewTime = sceneryElapsed, previewAngle = angle, previewZoom = zoom;
-    phase = 'entering';
-    startButton.disabled = true;
-    startScreen.inert = true;
-    startScreen.setAttribute('aria-hidden', 'true');
-    game.dataset.screen = phase;
-    reset();
-    sceneryElapsed = previewTime;
-    entranceAngle = angle = previewAngle;
-    entranceZoom = zoom = previewZoom;
-    entranceTurn = Math.atan2(Math.sin(initialAngle - angle), Math.cos(initialAngle - angle));
-    entranceProgress = 0;
-    refreshCamera();
-    if (reducedMotion) finishEntrance();
+    if (phase === 'menu' && !startButton.disabled) changeScene('map');
   }
   startButton.addEventListener('click', startGame);
 
@@ -513,21 +545,18 @@ function run(view) {
   function frame(time) {
     const dt = previousTime ? Math.min((time - previousTime) / 1000, .12) : 0;
     previousTime = time;
+    clouds.update(dt);
+    pauseMenu.update(dt);
+    levelMap.update(dt);
+    if (phase === 'map') { requestAnimationFrame(frame); return; }
     if (contextAvailable) {
-      if (!canPlay()) {
+      if (phase === 'menu') {
         // The menu has its own scenery clock; waves and combat have not started.
-        sceneryElapsed += dt;
-        if (phase === 'menu') angle = (angle + (reducedMotion ? 0 : dt * .028)) % (Math.PI * 2);
-        else {
-          entranceProgress = Math.min(1, entranceProgress + dt / .65);
-          const blend = 1 - (1 - entranceProgress) ** 3;
-          angle = entranceAngle + entranceTurn * blend;
-          zoom = T.MathUtils.lerp(entranceZoom, 1, blend);
-          if (entranceProgress === 1) finishEntrance();
-        }
+        const sceneryDt = clouds.busy ? 0 : dt;
+        sceneryElapsed += sceneryDt;
+        angle = (angle + (reducedMotion ? 0 : sceneryDt * .028)) % (Math.PI * 2);
         refreshCamera();
-        base.animate(sceneryElapsed, dt);
-        if (phase !== 'menu') { squad.animateFlag(sceneryElapsed, dt); engineers.animateFlag(sceneryElapsed, dt); }
+        base.animate(sceneryElapsed, sceneryDt);
         animateScenery();
         view.shadowMap.needsUpdate = true;
         view.render(scene, camera);
@@ -535,7 +564,7 @@ function run(view) {
         return;
       }
       refreshSelection();
-      const worldDt = deployment.update(dt, paused);
+      const worldDt = deployment.update(dt, paused || clouds.busy);
       sceneryElapsed += worldDt;
       battle.update(worldDt);
       if (selected && (battle.state.result || !activeSquad().members.some(member => member.hp > 0 && !member.inside))) select(false);

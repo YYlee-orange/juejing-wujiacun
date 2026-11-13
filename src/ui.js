@@ -95,8 +95,9 @@ export function installInkUi() {
     setPaused(paused) {
       const button = document.querySelector('#pause-game');
       button.setAttribute('aria-pressed', String(paused));
-      button.setAttribute('aria-label', paused ? '继续游戏' : '暂停游戏');
-      button.title = paused ? '继续游戏（空格）' : '暂停游戏（空格）';
+      button.setAttribute('aria-expanded', String(paused));
+      button.setAttribute('aria-label', paused ? '关闭暂停菜单' : '打开暂停菜单');
+      button.title = paused ? '关闭暂停菜单（空格）' : '打开暂停菜单（空格）';
     },
   };
 }

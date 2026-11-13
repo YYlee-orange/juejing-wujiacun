@@ -35,15 +35,56 @@ button:disabled { cursor: default; opacity: .45; }
 #viewport canvas.is-target { cursor: pointer; }
 #viewport canvas.is-dragging { cursor: grabbing; }
 .hud { position: absolute; z-index: 1; }
-#game:not([data-screen="playing"]) > .hud { visibility: hidden !important; pointer-events: none; }
-.start-screen { position: absolute; z-index: 2; inset: 0; display: grid; place-items: center; opacity: 1; transition: opacity 650ms var(--ease-settle); }
+.play-ui { position: absolute; z-index: 1; inset: 0; pointer-events: none; }
+#game:not([data-screen="playing"]) .hud { visibility: hidden !important; pointer-events: none; }
+.start-screen { position: absolute; z-index: 2; inset: 0; display: grid; place-items: center; }
 .start-screen[hidden] { display: none; }
 .start-veil { position: absolute; inset: 0; background: #ffffff82; -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); }
 .start-title { position: absolute; left: 50%; bottom: calc(50% + 36px); transform: translateX(-50%); width: clamp(290px, 52vw, 640px); margin: 0; pointer-events: none; user-select: none; }
 .start-title img { display: block; width: 100%; height: auto; }
-#game[data-screen="entering"] .start-screen { opacity: 0; }
 .start-button.ink-button { width: clamp(208px, 19vw, 270px); min-height: 64px; padding: 15px 24px; font-size: 28px; line-height: 32px; letter-spacing: .12em; --paper: #f7f1e3; }
 .start-button > span { position: relative; }
+.level-screen { position: absolute; z-index: 2; inset: 0; overflow: hidden; background: #8d998b; color: #453e31; }
+.level-screen[hidden] { display: none; }
+.map-scroll { position: absolute; inset: 0; overflow: hidden; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.level-screen.is-dragging .map-scroll, .level-screen.is-dragging .level-node { cursor: grabbing; }
+.map-track { position: absolute; left: 0; top: 0; }
+.map-mount { position: absolute; inset: 0; background: #8d998b; }
+.map-mount > svg { display: block; width: 100%; height: 100%; }
+.map-sheet { position: absolute; background: #ffe1b8; clip-path: url(#map-paper-edge); }
+.map-art { position: absolute; clip-path: url(#map-picture-edge); }
+.map-painting { display: block; width: 100%; height: 100%; pointer-events: none; }
+.map-ink-border { position: absolute; z-index: 3; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.map-title { position: absolute; z-index: 4; margin: 0; display: grid; place-items: center; color: #3f4134; font-weight: 400; line-height: 1.25; pointer-events: none; }
+.map-title-paper { position: absolute; inset: 0; width: 100%; height: 100%; }
+.map-title > span { position: relative; display: block; writing-mode: vertical-rl; text-orientation: upright; letter-spacing: .26em; -webkit-text-stroke: .3px currentColor; }
+.map-atmosphere { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.map-location { position: absolute; z-index: 2; width: var(--village-size); height: calc(var(--village-size) * .48325); transform: translate(-50%, -50%); }
+.level-node { display: block; position: relative; width: 100%; height: 100%; padding: 0; border: 0; background: none; transform: translateY(0); transition: transform 180ms var(--ease-settle), filter 200ms ease; touch-action: none; }
+.level-node:disabled { opacity: 1; }
+.level-node:focus-visible { outline: 1.5px dashed #857254; outline-offset: 9px; border-radius: 36%; }
+.village-art-window { position: absolute; inset: 0; display: block; overflow: hidden; pointer-events: none; mix-blend-mode: multiply; }
+.level-village { position: absolute; left: -11.1643%; top: -38.2838%; width: 122.488%; height: auto; filter: saturate(.65); pointer-events: none; }
+.level-name { position: absolute; left: calc(100% + 11px); top: 5%; display: grid; place-items: center; width: clamp(24px, 3.3vh, 29px); height: clamp(65px, 9.2vh, 82px); font-size: clamp(14px, 2.05vh, 18px); color: #4f4737; pointer-events: none; }
+.level-name > span { position: relative; writing-mode: vertical-rl; text-orientation: upright; line-height: 1.1; letter-spacing: .16em; }
+.map-name-paper { position: absolute; inset: 0; width: 100%; height: 100%; }
+.level-brush-ring { position: absolute; left: -25px; top: -20px; width: calc(100% + 50px); height: calc(100% + 40px); overflow: visible; pointer-events: none; }
+.brush-reveal { transition: none; }
+.map-back.ink-button { position: absolute; z-index: 5; right: max(var(--map-back-right, 60px), env(safe-area-inset-right)); top: max(var(--map-back-top, 60px), env(safe-area-inset-top)); min-width: 76px; --paper: #f0e2c9e8; --ink: #625d49; font-size: 18px; padding: 7px 18px; }
+.map-back .ink-frame { filter: drop-shadow(0 2px 0 #51453024); }
+.level-screen.is-choosing .map-scroll, .level-screen.is-choosing .level-node { cursor: default; }
+@media (hover: hover) and (pointer: fine) {
+  .level-node:hover:not(:disabled), .level-screen.is-choosing .level-node { transform: translateY(-3px); filter: drop-shadow(0 6px 3px #4c412c29); }
+  .level-node:active:not(:disabled) { transform: translateY(1px); filter: drop-shadow(0 1px 1px #4c412c20); }
+}
+@media (orientation: landscape) and (max-height: 540px) {
+  .map-back.ink-button { min-height: 36px; padding: 5px 15px; font-size: 16px; }
+  .level-name { left: calc(100% + 7px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .level-node { transition: none; }
+  .level-node:hover:not(:disabled), .level-node:active:not(:disabled), .level-screen.is-choosing .level-node { transform: none; }
+}
 #game[data-screen="menu"] #error { z-index: 4; top: calc(50% + 55px); }
 .ink-frame {
   display: block;
@@ -72,7 +113,7 @@ button:disabled { cursor: default; opacity: .45; }
 }
 .ink-button:active:not(:disabled), .squad-card:active:not(:disabled) { transform: translateY(1.5px) scale(.985); transition-duration: 70ms; }
 .ink-button:active:not(:disabled) .ink-frame { filter: drop-shadow(0 1px 0 #464a3b55); }
-.tools { display: flex; align-items: center; gap: 12px; right: max(clamp(18px, 3vw, 46px), env(safe-area-inset-right)); top: max(19px, env(safe-area-inset-top)); }
+.tools { display: flex; align-items: center; gap: 12px; right: max(clamp(18px, 3vw, 46px), env(safe-area-inset-right)); top: max(19px, env(safe-area-inset-top)); pointer-events: auto; }
 .pause-button { padding: 5px; width: 44px; height: 44px; }
 .pause-icon { display: block; width: 34px; height: 34px; pointer-events: none; filter: drop-shadow(0 2px 0 #4d4a3d42); transition: filter var(--motion-fast) var(--ease-settle); }
 .play-mark, .pause-button[aria-pressed="true"] .pause-bars { display: none; }
@@ -162,6 +203,18 @@ button:disabled { cursor: default; opacity: .45; }
 .result-card h2 { font: inherit; font-size: 34px; margin: 17px 0 13px; }
 .result-card p { font-size: 15px; line-height: 1.7; }
 .result-card .ink-button { margin-top: 8px; min-width: 136px; --paper: #e5e6d0; }
+.pause-menu { position: absolute; z-index: 4; inset: 0; display: grid; place-items: center; opacity: var(--pause-opacity, 0); }
+.pause-menu[hidden] { display: none; }
+.pause-backdrop { position: absolute; inset: 0; background: #263d353d; -webkit-backdrop-filter: blur(1.5px); backdrop-filter: blur(1.5px); }
+.pause-panel { position: relative; isolation: isolate; width: min(86vw, 326px); padding: 22px 36px 28px; text-align: center; }
+.pause-panel > .ink-frame { filter: drop-shadow(0 5px 0 #303e344d); }
+.pause-panel h2 { font-size: 28px; font-weight: 400; line-height: 36px; margin: 0 0 16px; }
+.pause-actions { display: grid; gap: 11px; }
+.pause-actions > .ink-button { width: 100%; font-size: 20px; }
+.menu-close.ink-button { position: absolute; top: 4px; right: 4px; width: 44px; min-height: 44px; padding: 12px; }
+.menu-close svg { display: block; width: 20px; height: 20px; }
+.scene-transition { position: absolute; z-index: 10; inset: 0; width: 100%; height: 100%; touch-action: none; }
+.scene-transition[hidden] { display: none; }
 #error, noscript { position: absolute; top: 44%; left: 50%; transform: translateX(-50%); width: min(85%, 420px); padding: 20px; background: #faf8ec; text-align: center; }
 @media (hover: hover) and (pointer: fine) {
   .ink-button:hover:not(:disabled), .squad-card:hover:not(:disabled) { transform: translateY(-2px); }

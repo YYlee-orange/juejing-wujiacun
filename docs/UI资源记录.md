@@ -32,7 +32,7 @@
 
 - 来源：[霞鹜文楷官方仓库](https://github.com/lxgw/LxgwWenKai)，`fonts/TTF/LXGWWenKai-Regular.ttf`。
 - 许可：随附 [SIL Open Font License 1.1](../assets/fonts/OFL.txt)。
-- 当前界面字符子集：[wujiacun-kai.woff2](../assets/fonts/wujiacun-kai.woff2)，约 55 KB，286 个界面所需字符，修改后的字体家族命名为 `Wujiacun Kai`。
+- 当前界面字符子集：[wujiacun-kai.woff2](../assets/fonts/wujiacun-kai.woff2)，约 61 KB，313 个界面所需字符，修改后的字体家族命名为 `Wujiacun Kai`。
 - [ui-kai.css](../assets/fonts/ui-kai.css) 将该子集以内嵌字体形式提供，支持直接以 `file://` 打开本地 HTML；使用系统楷体作为后备。
 - 新增界面文字时应同步更新字体子集及其内嵌 CSS。原始完整字体未随项目分发。
 
@@ -41,3 +41,17 @@
 在 `src/ui.js` 中以 SVG 绘制，边线采用有粗细变化的实心墨线带，局部留少量飞白。颜色与尺寸由 `styles.css` 控制。
 
 旗帜由后层旗尾、折返暗面和前层旗面依次叠放，参考用户补充的[旗帜折叠局部图](references/flag-fold-reference.png)。
+
+## 云雾与暂停菜单
+
+云雾在 `src/cloud-transition.js` 内沿用场景烟雾的体积叠层思路，以实例化二十面体雾团构成不规则云层，无需外部贴图，不使用大圆形底层。内部以连续的中性白色体积明暗为主，分面法线仅占 16%；轮廓随朝向逐渐透明。前层主体、边缘云团、薄雾的不透明度分别为 0.56、0.38、0.18，后方另有浅白密度层保证完整遮挡，减轻交叠处的实体穿插感。
+
+参考检查包括 [Supercell 官方云层画面](https://supercell.com/en/games/clashofclans/ja/blog/game-updates/legend-league-redesign-jp/)、[游戏实录中的匹配云层](https://www.youtube.com/watch?v=1Oy2xs80w08)（约 31.5—34 秒）和 [CloudAnimation 作者提供的转场演示](https://github.com/Swapnil-J-Patil/CloudAnimation)。后者为第三方实现，仅用于辅助观察轮廓层次，不作为原游戏的技术依据；这些参考图与视频未打包进游戏。
+
+独立透明 WebGL 层同时遮住场景和界面；入口与出口共用同一位置曲线，包括雾团的轻微错位与翻涌，出口反向采样，完整遮挡后执行换景回调。
+
+暂停菜单由 `src/pause-menu.js` 管理显隐、缩放、淡入淡出和键盘焦点；动画使用独立于战斗的界面时钟。
+
+## 选关画卷
+
+山川底图与透明村落符号使用内置图像生成工具制作，项目资源路径与最终提示词见 [选关界面资源记录](选关界面资源记录.md)。当前底图为简化碎皴、加重主轮廓的 v5；村落为保留原外形、加重主要笔触的 v3，按实际建筑范围裁去显示边距。竖排图名以墨框题签直接盖在画上，图像以黑色墨线的同一轮廓裁切，墨线外依次为窄纸边和绿色装裱；灰青布面使用不规则接缝与疏淡磨损。整幅装裱随拖动移动，返回键固定在黑色墨线内的右上方。水纹叠层扣除浅滩与洲地，朱红选关圈加粗并在约 0.52 秒内绘制完成。
