@@ -13,7 +13,7 @@ export function createDeployment({ reducedMotion = false } = {}) {
       if (state.progress === 0) origin.value.copy(anchor);
     }
   }
-  function update(dt) {
+  function update(dt, paused = false) {
     const duration = reducedMotion ? .12 : state.active ? .26 : .25;
     state.progress = T.MathUtils.clamp(state.progress + (state.active ? 1 : -1) * dt / duration, 0, 1);
     progress.value = state.progress;
@@ -26,8 +26,8 @@ export function createDeployment({ reducedMotion = false } = {}) {
     state.timeScale = target + (before - target) * decay;
     if (Math.abs(state.timeScale - target) < .00005) state.timeScale = target;
     state.focus = T.MathUtils.clamp((1 - state.timeScale) / (1 - slowSpeed), 0, 1);
-    state.elapsed += worldDt;
-    return worldDt;
+    state.elapsed += paused ? 0 : worldDt;
+    return paused ? 0 : worldDt;
   }
   function tileMaterial(material) {
     material.onBeforeCompile = shader => {

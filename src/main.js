@@ -9,12 +9,15 @@ import { createEffects } from './effects.js';
 import { createBattle } from './battle.js';
 import { balance } from './balance.js';
 import { createDeployment } from './deployment.js';
+import { installInkUi } from './ui.js';
 
 const viewport = document.querySelector('#viewport');
 const errorMessage = document.querySelector('#error');
 const squadButton = document.querySelector('#squad-card');
 const engineerButton = document.querySelector('#engineer-card');
 const waveStatus = document.querySelector('#wave-status');
+const pauseButton = document.querySelector('#pause-game');
+const inkUi = installInkUi();
 const initialAngle = .66;
 const minZoom = .925;
 
@@ -60,6 +63,7 @@ function run(view) {
   let zoom = 1;
   let selected = false;
   let selectedTeam = 'militia';
+  let paused = false;
   const activeSquad = () => selectedTeam === 'engineers' ? engineers : squad;
   const activeOrders = () => selectedTeam === 'engineers' ? battle.engineerOrders : battle;
   const deployment = createDeployment({ reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches });
@@ -199,6 +203,7 @@ function run(view) {
     const { mode } = activeOrders().state, { result } = battle.state;
     squadButton.setAttribute('aria-pressed', String(selected && selectedTeam === 'militia'));
     engineerButton.setAttribute('aria-pressed', String(selected && selectedTeam === 'engineers'));
+    inkUi.setSelection(selected && !result, selectedTeam);
     const count = activeSquad().members.filter(member => member.hp > 0).length;
     const deploying = selected && count > 0 && !result && ['field', 'moving', 'returning', 'approaching', 'extinguishing'].includes(mode);
     deployment.setActive(deploying, activeOrders().anchor);
@@ -356,6 +361,12 @@ function run(view) {
     reset();
   });
   document.querySelector('#restart-battle').addEventListener('click', reset);
+  function togglePause() {
+    if (battle.state.result) return;
+    paused = !paused;
+    inkUi.setPaused(paused);
+  }
+  pauseButton.addEventListener('click', togglePause);
 
   function refreshWaveStatus() {
     const { wave, waves: totalWaves } = waves.state;
@@ -366,6 +377,7 @@ function run(view) {
   }
 
   function refreshBattleUi() {
+    pauseButton.disabled = !!battle.state.result;
     for (const [team, button, counter] of [[squad, squadButton, '#squad-state'], [engineers, engineerButton, '#engineer-state']]) {
       const alive = team.members.filter(member => member.hp > 0);
       document.querySelector(counter).textContent = `${alive.length} / ${team.members.length}`;
@@ -406,6 +418,11 @@ function run(view) {
   ]);
   window.addEventListener('keydown', event => {
     if (event.ctrlKey || event.altKey || event.metaKey) return;
+    if (event.code === 'Space' && !(event.target instanceof HTMLButtonElement)) {
+      event.preventDefault();
+      if (!event.repeat) togglePause();
+      return;
+    }
     if (event.key === 'Escape') select(false);
     if (event.key.toLowerCase() === 'q') rotate(-Math.PI / 4);
     if (event.key.toLowerCase() === 'e') rotate(Math.PI / 4);
@@ -421,6 +438,8 @@ function run(view) {
   new ResizeObserver(refreshCamera).observe(viewport);
 
   function reset() {
+    paused = false;
+    inkUi.setPaused(false);
     angle = initialAngle;
     zoom = 1;
     selectedTeam = 'militia';
@@ -441,7 +460,7 @@ function run(view) {
     previousTime = time;
     if (contextAvailable) {
       refreshSelection();
-      const worldDt = deployment.update(dt);
+      const worldDt = deployment.update(dt, paused);
       battle.update(worldDt);
       if (selected && (battle.state.result || !activeSquad().members.some(member => member.hp > 0 && !member.inside))) select(false);
       view.shadowMap.needsUpdate = true;
