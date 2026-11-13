@@ -35,6 +35,16 @@ button:disabled { cursor: default; opacity: .45; }
 #viewport canvas.is-target { cursor: pointer; }
 #viewport canvas.is-dragging { cursor: grabbing; }
 .hud { position: absolute; z-index: 1; }
+#game:not([data-screen="playing"]) > .hud { visibility: hidden !important; pointer-events: none; }
+.start-screen { position: absolute; z-index: 2; inset: 0; display: grid; place-items: center; opacity: 1; transition: opacity 650ms var(--ease-settle); }
+.start-screen[hidden] { display: none; }
+.start-veil { position: absolute; inset: 0; background: #ffffff82; -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); }
+.start-title { position: absolute; left: 50%; bottom: calc(50% + 36px); transform: translateX(-50%); width: clamp(290px, 52vw, 640px); margin: 0; pointer-events: none; user-select: none; }
+.start-title img { display: block; width: 100%; height: auto; }
+#game[data-screen="entering"] .start-screen { opacity: 0; }
+.start-button.ink-button { width: clamp(208px, 19vw, 270px); min-height: 64px; padding: 15px 24px; font-size: 28px; line-height: 32px; letter-spacing: .12em; --paper: #f7f1e3; }
+.start-button > span { position: relative; }
+#game[data-screen="menu"] #error { z-index: 4; top: calc(50% + 55px); }
 .ink-frame {
   display: block;
   position: absolute;
@@ -162,6 +172,9 @@ button:disabled { cursor: default; opacity: .45; }
   .ink-button:active:not(:disabled) .ink-frame, .pause-button:active:not(:disabled) .pause-icon { filter: drop-shadow(0 1px 0 #34392c55); }
 }
 @media (orientation: landscape) and (max-height: 540px) {
+  .start-veil { -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+  .start-title { width: min(60vw, 420px); }
+  .start-button.ink-button { min-height: 58px; padding: 13px 22px; font-size: 26px; }
   .tools { top: max(13px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); gap: 9px; }
   .wave-info { top: max(14px, env(safe-area-inset-top)); font-size: 16px; padding: 6px 14px; }
   .ink-button { font-size: 17px; padding: 9px 15px; }
@@ -177,7 +190,11 @@ button:disabled { cursor: default; opacity: .45; }
   .result-card { padding: 20px 28px; }
   .result-card h2 { font-size: 30px; margin: 10px 0; }
 }
+@media (max-height: 350px) {
+  .start-title { width: min(58vw, 360px); }
+}
 @media (prefers-reduced-motion: reduce) {
+  .start-screen { transition: none; }
   .ink-button, .squad-card, .ink-frame, .squad-banner, .portrait-window, .pause-icon, .command { transition: none; }
   .result-card { animation: none; }
   .ink-button:hover:not(:disabled), .squad-card:hover:not(:disabled), .ink-button:active:not(:disabled), .squad-card:active:not(:disabled) { transform: none; }

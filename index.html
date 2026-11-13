@@ -4,14 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#e5ead8">
-  <title>绝境吴家村 · 山村沙盘</title>
+  <title>绝境：吴家村</title>
   <link rel="stylesheet" href="assets/fonts/ui-kai.css">
   <link rel="stylesheet" href="styles.css">
   <script src="game.js" defer></script>
 </head>
 <body>
-  <main id="game" aria-label="吴家村战术沙盘">
+  <main id="game" data-screen="menu" aria-label="吴家村战术沙盘">
     <div id="viewport" aria-label="山村场景"></div>
+    <section id="start-screen" class="start-screen" aria-label="开始界面">
+      <div class="start-veil" aria-hidden="true"></div>
+      <h1 class="start-title"><img src="assets/titles/wujiacun-ink.png" alt="绝境：吴家村" width="2172" height="724" draggable="false"></h1>
+      <button id="start-game" class="ink-button start-button" data-ink-frame="button" type="button" disabled><span>开始游戏</span></button>
+    </section>
     <div class="hud tools">
       <button id="pause-game" class="ink-button pause-button" type="button" aria-label="暂停游戏" aria-pressed="false" title="暂停游戏（空格）">
         <svg class="pause-icon" viewBox="0 0 36 36" aria-hidden="true">

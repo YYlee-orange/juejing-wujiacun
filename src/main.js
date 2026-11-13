@@ -17,9 +17,13 @@ const squadButton = document.querySelector('#squad-card');
 const engineerButton = document.querySelector('#engineer-card');
 const waveStatus = document.querySelector('#wave-status');
 const pauseButton = document.querySelector('#pause-game');
+const game = document.querySelector('#game');
+const startScreen = document.querySelector('#start-screen');
+const startButton = document.querySelector('#start-game');
 const inkUi = installInkUi();
 const initialAngle = .66;
 const minZoom = .925;
+const menuZoom = 1.30;
 
 function createRenderer() {
   try {
@@ -64,9 +68,12 @@ function run(view) {
   let selected = false;
   let selectedTeam = 'militia';
   let paused = false;
+  let phase = 'menu', sceneryElapsed = 0, entranceProgress = 0, entranceAngle = initialAngle, entranceTurn = 0, entranceZoom = menuZoom;
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const canPlay = () => phase === 'playing';
   const activeSquad = () => selectedTeam === 'engineers' ? engineers : squad;
   const activeOrders = () => selectedTeam === 'engineers' ? battle.engineerOrders : battle;
-  const deployment = createDeployment({ reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches });
+  const deployment = createDeployment({ reducedMotion });
   let confirmationAge = 1;
   const reachable = new Set();
   let hovered = null;
@@ -130,11 +137,13 @@ function run(view) {
   view.domElement.addEventListener('webglcontextlost', event => {
     event.preventDefault();
     contextAvailable = false;
+    if (phase === 'menu') startButton.disabled = true;
     errorMessage.hidden = false;
   });
   view.domElement.addEventListener('webglcontextrestored', () => {
     errorMessage.hidden = true;
     contextAvailable = true;
+    if (phase === 'menu') startButton.disabled = false;
     view.shadowMap.needsUpdate = true;
   });
 
@@ -213,6 +222,7 @@ function run(view) {
   }
 
   function select(value, team = selectedTeam) {
+    if (value && !canPlay()) return;
     selectedTeam = team;
     selected = !!value && !battle.state.result && activeSquad().members.some(member => member.hp > 0 && !member.inside);
     if (selected) {
@@ -271,6 +281,7 @@ function run(view) {
   }
 
   function applyPointer(event) {
+    if (!canPlay()) return;
     const { unit, tile, home } = tileUnder(event);
     if (home) {
       if (selected) {
@@ -294,6 +305,7 @@ function run(view) {
 
   canvas.addEventListener('contextmenu', event => { event.preventDefault(); select(false); });
   canvas.addEventListener('pointerdown', event => {
+    if (!canPlay()) return;
     if (event.pointerType === 'touch') {
       touches.set(event.pointerId, new T.Vector2(event.clientX, event.clientY));
       canvas.setPointerCapture(event.pointerId);
@@ -310,6 +322,7 @@ function run(view) {
     canvas.setPointerCapture(event.pointerId);
   });
   canvas.addEventListener('pointermove', event => {
+    if (!canPlay()) return;
     touches.get(event.pointerId)?.set(event.clientX, event.clientY);
     if (pinch) {
       const distance = pinchDistance();
@@ -351,6 +364,7 @@ function run(view) {
   canvas.addEventListener('pointerleave', () => setHovered(null));
   canvas.addEventListener('wheel', event => {
     event.preventDefault();
+    if (!canPlay()) return;
     zoom = T.MathUtils.clamp(zoom * Math.exp(-event.deltaY * .001), minZoom, 1.85);
     setHovered(null);
     refreshCamera();
@@ -362,7 +376,7 @@ function run(view) {
   });
   document.querySelector('#restart-battle').addEventListener('click', reset);
   function togglePause() {
-    if (battle.state.result) return;
+    if (!canPlay() || battle.state.result) return;
     paused = !paused;
     inkUi.setPaused(paused);
   }
@@ -409,6 +423,7 @@ function run(view) {
   }
 
   function rotate(amount) {
+    if (!canPlay()) return;
     angle += amount;
     setHovered(null);
     refreshCamera();
@@ -418,6 +433,12 @@ function run(view) {
   ]);
   window.addEventListener('keydown', event => {
     if (event.ctrlKey || event.altKey || event.metaKey) return;
+    if (!canPlay()) {
+      if (phase === 'menu' && event.code === 'Enter' && !event.repeat && !(event.target instanceof HTMLButtonElement)) {
+        event.preventDefault(); startGame();
+      }
+      return;
+    }
     if (event.code === 'Space' && !(event.target instanceof HTMLButtonElement)) {
       event.preventDefault();
       if (!event.repeat) togglePause();
@@ -438,12 +459,14 @@ function run(view) {
   new ResizeObserver(refreshCamera).observe(viewport);
 
   function reset() {
+    sceneryElapsed = 0;
     paused = false;
     inkUi.setPaused(false);
     angle = initialAngle;
-    zoom = 1;
+    zoom = phase === 'menu' ? menuZoom : 1;
     selectedTeam = 'militia';
     battle.reset();
+    squad.group.visible = engineers.group.visible = waves.group.visible = phase !== 'menu';
     deployment.reset();
     view.domElement.style.filter = '';
     setHovered(null);
@@ -455,12 +478,65 @@ function run(view) {
     refreshCamera();
   }
 
+  function finishEntrance() {
+    phase = 'playing';
+    game.dataset.screen = phase;
+    startScreen.hidden = true;
+    angle = initialAngle;
+    zoom = 1;
+    refreshCamera();
+  }
+  function startGame() {
+    if (phase !== 'menu' || startButton.disabled) return;
+    const previewTime = sceneryElapsed, previewAngle = angle, previewZoom = zoom;
+    phase = 'entering';
+    startButton.disabled = true;
+    startScreen.inert = true;
+    startScreen.setAttribute('aria-hidden', 'true');
+    game.dataset.screen = phase;
+    reset();
+    sceneryElapsed = previewTime;
+    entranceAngle = angle = previewAngle;
+    entranceZoom = zoom = previewZoom;
+    entranceTurn = Math.atan2(Math.sin(initialAngle - angle), Math.cos(initialAngle - angle));
+    entranceProgress = 0;
+    refreshCamera();
+    if (reducedMotion) finishEntrance();
+  }
+  startButton.addEventListener('click', startGame);
+
+  function animateScenery() {
+    world.animateWater(sceneryElapsed);
+    world.animateMeadow(sceneryElapsed);
+    world.animateCanopy(sceneryElapsed);
+  }
   function frame(time) {
     const dt = previousTime ? Math.min((time - previousTime) / 1000, .12) : 0;
     previousTime = time;
     if (contextAvailable) {
+      if (!canPlay()) {
+        // The menu has its own scenery clock; waves and combat have not started.
+        sceneryElapsed += dt;
+        if (phase === 'menu') angle = (angle + (reducedMotion ? 0 : dt * .028)) % (Math.PI * 2);
+        else {
+          entranceProgress = Math.min(1, entranceProgress + dt / .65);
+          const blend = 1 - (1 - entranceProgress) ** 3;
+          angle = entranceAngle + entranceTurn * blend;
+          zoom = T.MathUtils.lerp(entranceZoom, 1, blend);
+          if (entranceProgress === 1) finishEntrance();
+        }
+        refreshCamera();
+        base.animate(sceneryElapsed, dt);
+        if (phase !== 'menu') { squad.animateFlag(sceneryElapsed, dt); engineers.animateFlag(sceneryElapsed, dt); }
+        animateScenery();
+        view.shadowMap.needsUpdate = true;
+        view.render(scene, camera);
+        requestAnimationFrame(frame);
+        return;
+      }
       refreshSelection();
       const worldDt = deployment.update(dt, paused);
+      sceneryElapsed += worldDt;
       battle.update(worldDt);
       if (selected && (battle.state.result || !activeSquad().members.some(member => member.hp > 0 && !member.inside))) select(false);
       view.shadowMap.needsUpdate = true;
@@ -475,9 +551,7 @@ function run(view) {
       orderPin.scale.setScalar(1 + Math.sin(confirm * Math.PI) * .13);
       refreshBattleUi();
       refreshWaveStatus();
-      world.animateWater(deployment.state.elapsed);
-      world.animateMeadow(deployment.state.elapsed);
-      world.animateCanopy(deployment.state.elapsed);
+      animateScenery();
       view.render(scene, camera);
     }
     requestAnimationFrame(frame);
@@ -485,6 +559,7 @@ function run(view) {
 
   buildMoveGrid();
   reset();
+  startButton.disabled = false;
   requestAnimationFrame(frame);
 }
 
